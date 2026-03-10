@@ -17,6 +17,7 @@ spec:
       containers:
         - name: sample-app
           image: sample-app:latest
+          imagePullPolicy: Never
           ports:
             - containerPort: 8080
           envFrom:
