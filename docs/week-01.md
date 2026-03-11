@@ -762,12 +762,19 @@ kubectl set image deployment/sample-app sample-app=sample-app:2.0.0
 # 3. 롤아웃 상태 관찰
 kubectl rollout status deployment/sample-app
 
-# 4. 새 버전 확인
-curl http://localhost:8080  # port-forward 필요
+# 4. 새 버전 확인 (롤아웃으로 Pod가 교체되므로 port-forward 재실행 필요)
+kubectl port-forward service/sample-app 8080:80
+# 다른 터미널에서:
+curl http://localhost:8080
 
 # 5. 문제가 있다면 롤백
 kubectl rollout undo deployment/sample-app
 kubectl rollout status deployment/sample-app
+
+# 6. 롤백 확인 (Pod가 다시 교체되므로 port-forward 재실행 필요)
+kubectl port-forward service/sample-app 8080:80
+# 다른 터미널에서:
+curl http://localhost:8080
 ```
 
 ---
