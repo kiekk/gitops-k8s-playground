@@ -449,6 +449,25 @@ spec:
               port: 8080
 ```
 
+**kind 환경 주의사항 - `imagePullPolicy: Never`**:
+
+kind 클러스터는 외부 레지스트리를 사용하지 않고, `kind load docker-image`로 로컬 이미지를 노드에 직접 로드한다. 그런데 `latest` 태그를 사용하면 Kubernetes의 기본 `imagePullPolicy`가 `Always`가 되어 외부 레지스트리에서 pull을 시도하고, 실패하면 **ImagePullBackOff** 에러가 발생한다.
+
+이를 방지하려면 `imagePullPolicy: Never`를 명시해야 한다:
+
+```yaml
+containers:
+  - name: sample-app
+    image: sample-app:latest
+    imagePullPolicy: Never    # kind 환경 필수 - 로컬 이미지만 사용
+```
+
+| imagePullPolicy | 동작 | latest 태그 기본값 |
+|----------------|------|-------------------|
+| `Always` | 매번 레지스트리에서 pull 시도 | O (기본) |
+| `IfNotPresent` | 로컬에 없을 때만 pull | 명시적 태그(v1.0.0 등) 기본값 |
+| `Never` | pull 하지 않음, 로컬만 사용 | kind 환경에서 권장 |
+
 ```bash
 # Deployment 적용
 kubectl apply -f manifests/base/deployment.yaml
@@ -569,6 +588,20 @@ kubectl apply -k manifests/base
 kubectl delete -k manifests/base
 ```
 
+### 7.3 `-f` vs `-k` 차이 (주의)
+
+```bash
+# -f : 디렉토리 내 모든 YAML 파일을 적용
+kubectl apply -f manifests/base    # rollout.yaml, analysis-template.yaml 등 모두 적용 시도!
+
+# -k : kustomization.yaml에 명시된 리소스만 적용
+kubectl apply -k manifests/base    # deployment, service, configmap 등 지정된 것만 적용
+```
+
+> **주의**: `manifests/base/` 디렉토리에는 Week 1에서 아직 사용하지 않는 파일(Rollout, AnalysisTemplate 등)도 포함되어 있다.
+> `-f`로 디렉토리를 지정하면 Argo Rollouts CRD가 설치되지 않은 상태에서 에러가 발생한다.
+> 반드시 **`-k`** 옵션을 사용하여 kustomization.yaml에 정의된 리소스만 적용하자.
+
 ---
 
 ## Step 8: kubectl 핵심 명령어 정리
@@ -619,6 +652,10 @@ kubectl get pods -l app=sample-app -w     # -w: watch 모드로 실시간 확인
 kubectl scale deployment sample-app --replicas=2
 
 # 이미지 업데이트 (Rolling Update 발생)
+# 중요: kind 환경에서는 반드시 이미지를 먼저 빌드 & 로드해야 한다!
+# 로드하지 않으면 ErrImageNeverPull 에러 발생 (imagePullPolicy: Never이므로)
+docker build -t sample-app:2.0.0 apps/sample-app/
+kind load docker-image sample-app:2.0.0 --name gitops-study
 kubectl set image deployment/sample-app sample-app=sample-app:2.0.0
 
 # 롤아웃 상태 확인
@@ -700,7 +737,8 @@ kubectl get pods -w
 ### 과제 4: Rolling Update & Rollback
 
 ```bash
-# 1. 이미지 v2 빌드 & 로드 (main.go에서 APP_VERSION 변경 후)
+# 1. 이미지 v2 빌드 & kind에 로드 (필수!)
+#    imagePullPolicy: Never이므로 kind load 없이 set image하면 ErrImageNeverPull 발생
 docker build -t sample-app:2.0.0 apps/sample-app/
 kind load docker-image sample-app:2.0.0 --name gitops-study
 
@@ -758,6 +796,8 @@ kind delete cluster --name gitops-study
 - [ ] Rolling Update와 Rollback을 수행할 수 있다
 - [ ] Pod 삭제 시 Deployment가 자동 복구하는 것을 확인했다
 - [ ] 명령형(Imperative)과 선언형(Declarative) 방식의 차이를 이해한다
+- [ ] `kubectl apply -f`와 `-k`의 차이를 이해한다
+- [ ] kind 환경에서 `imagePullPolicy: Never`가 필요한 이유를 이해한다
 
 ---
 

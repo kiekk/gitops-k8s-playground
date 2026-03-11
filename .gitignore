@@ -3,3 +3,8 @@
 *.swp
 *.swo
 *~
+
+# internal notes
+docs/_n1.md
+docs/_n2.md
+docs/_n3.md
