@@ -336,6 +336,17 @@ kubectl config set-context --current --namespace=default
 
 ## Step 6: 매니페스트 배포
 
+> **중요: 매니페스트 적용 전에 반드시 이미지를 빌드하고 kind에 로드해야 한다.**
+> `imagePullPolicy: Never` 설정이므로, 이미지가 노드에 없으면 `ErrImageNeverPull` 에러가 발생한다.
+
+```bash
+# 매니페스트 적용 전 필수 단계
+docker build -t sample-app:latest apps/sample-app/
+kind load docker-image sample-app:latest --name gitops-study
+```
+
+이후 ConfigMap, Secret, Deployment, Service 순서로 적용한다. 또는 Step 7의 Kustomize(`kubectl apply -k`)로 한번에 적용해도 된다.
+
 ### 6.1 ConfigMap 적용
 
 `manifests/base/configmap.yaml`:
@@ -421,6 +432,9 @@ spec:
     matchLabels:
       app: sample-app            # 이 label을 가진 Pod를 관리
   template:
+    metadata:
+      labels:
+        app: sample-app          # Pod에 부여되는 label (matchLabels와 일치해야 함)
     spec:
       containers:
         - name: sample-app
